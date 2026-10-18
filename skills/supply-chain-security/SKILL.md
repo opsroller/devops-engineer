@@ -41,6 +41,12 @@ cdxgen, Sigstore/cosign, OSV-Scanner, Dependabot, Renovate).
 6. Record: the dependency appears in the next SBOM automatically; note any
    manual license/notice entry needed.
 
+Repin, not upgrade: to lock the same versions for another interpreter,
+runtime or platform, regenerate the lockfile with the tool that made it,
+diff name and version before and after (only hashes and markers may
+change), and install it with hashes enforced on the target. The
+`repin-lockfile` workflow runs this (`/devops-engineer:repin-lockfile`).
+
 Automated update PRs: group minor/patch updates, run the full pipeline,
 merge when green; major updates get a human read of the changelog.
 

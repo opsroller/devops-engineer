@@ -28,4 +28,4 @@ Based on the OpenSSF Scorecard checks: branch protection, code review, binary ar
 
 Reference for dependency policy and SBOM/provenance format; how-to for verifying signatures and adding dependencies; explanation for posture decisions.
 
-[upgrade-dependency](workflow-upgrade-dependency.md) applies pinning and checksum verification to one dependency or toolchain upgrade.
+[upgrade-dependency](workflow-upgrade-dependency.md) applies pinning and checksum verification to one dependency or toolchain upgrade; [repin-lockfile](workflow-repin-lockfile.md) moves a hash-locked lockfile to another interpreter or platform at the same versions.

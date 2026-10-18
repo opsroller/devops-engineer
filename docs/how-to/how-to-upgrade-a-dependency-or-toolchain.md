@@ -7,7 +7,9 @@ This guide shows you how to land one upgrade with the
 `upgrade-dependency` workflow, with every reference moved together,
 downloads pinned and checksummed, notices and cache keys updated, and a
 before/after comparison in the PR. For a new CI stage, use
-[how to add or change a pipeline stage](how-to-add-or-change-a-pipeline-stage.md).
+[how to add or change a pipeline stage](how-to-add-or-change-a-pipeline-stage.md);
+to lock the same versions for another interpreter or platform, use
+[how to repin a lockfile](how-to-repin-a-lockfile-to-another-interpreter-or-platform.md).
 
 1. Pick the dependency and, if you need a specific one, the exact target
    version. Without one, the workflow takes the latest stable release.
