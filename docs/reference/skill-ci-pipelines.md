@@ -31,6 +31,22 @@
 - Artifact retention set explicitly, shortest that serves; on public repositories logs, caches and artifacts are readable by anyone with read access.
 - A path-filtered or event-limited check is never required where it does not report.
 - Edits to another role's paths are minimal, separate commits, listed in the PR, owner told.
+- A CI-only failure gets a local reproduction of the runner's environment before a fix is pushed.
+
+## Reproducing a CI-only driver or runtime failure
+
+| Step | What to do |
+|---|---|
+| Identify | runner image and version, exact driver package versions, the program's renderer/device line, from the job log (add a step that prints them if missing) |
+| Fetch | exactly those packages, from the mirror or the distribution's archive or snapshot service, checksums verified |
+| Unpack | into a scratch directory without installing (`dpkg-deb -x` or equivalent) |
+| Point | `LD_LIBRARY_PATH`, `LIBGL_DRIVERS_PATH`, `VK_DRIVER_FILES` / `VK_ICD_FILENAMES`, plus the job's selection variables (`LIBGL_ALWAYS_SOFTWARE`, `GALLIUM_DRIVER`, `MESA_LOADER_DRIVER_OVERRIDE`) |
+| Prove | `glxinfo -B`, `vulkaninfo --summary`, renderer line or `LD_DEBUG=libs` match the CI log exactly |
+| Run | same display (virtual X size and depth, or headless flag), same command, CI-built artifact, same timeout |
+| Fall back | the runner's container image with its CPU and memory limits; a remote debug shell on the runner last (branch only, pinned, no secrets) |
+| Bisect | between a passing and a failing driver version; report the first bad one upstream |
+
+A local red run is the red case for a fix; the CI run on the fix branch stays the green case. Full recipe: [how to reproduce a CI-only GPU driver failure locally](../how-to/how-to-reproduce-a-ci-only-gpu-driver-failure-locally.md).
 
 ## Workflow
 

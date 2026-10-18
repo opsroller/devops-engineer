@@ -30,7 +30,8 @@ project's `CLAUDE.md` and profile say with which tools.
   [add or change a pipeline stage](docs/how-to/how-to-add-or-change-a-pipeline-stage.md),
   [upgrade a dependency or toolchain](docs/how-to/how-to-upgrade-a-dependency-or-toolchain.md),
   [make a generated asset a build output](docs/how-to/how-to-make-a-generated-asset-a-build-output.md),
-  [audit and harden the pipeline](docs/how-to/how-to-audit-and-harden-the-pipeline.md) and
+  [audit and harden the pipeline](docs/how-to/how-to-audit-and-harden-the-pipeline.md),
+  [reproduce a CI-only GPU driver failure locally](docs/how-to/how-to-reproduce-a-ci-only-gpu-driver-failure-locally.md) and
   [make a repository REUSE-compliant](docs/how-to/how-to-make-a-repository-reuse-compliant.md).
 - **Look something up.** The [reference index](docs/reference/index.md)
   describes the agent, each of the seven skills, each workflow's arguments
