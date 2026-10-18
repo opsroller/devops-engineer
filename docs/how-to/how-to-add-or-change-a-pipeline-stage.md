@@ -30,7 +30,11 @@ a review of the whole pipeline, use
    explain in one line; otherwise stop and ask that role to make it.
 4. When it finishes, read `decision`:
    - `ready-for-review`: the draft PR on `branch` has the stage, a run on
-     the branch, verification evidence and docs. Request review.
+     the branch, verification evidence and docs. For a work package, ship it without rebuilding: run
+     engineering-practices deliver-package with
+     `{ wp: "<the package>", prior: <the whole result> }`. With no work
+     package, land `handoff.branch` with engineering-practices land-pr
+     after review. `next` gives both commands.
    - `blocked`: read `open` or `doc_problems`; fix and rerun with
      `run.from` and the returned `results`, or continue by hand on the
      same branch.

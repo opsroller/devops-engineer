@@ -25,8 +25,12 @@ reproducible CI build, using the `add-build-target` workflow.
    the run and record your preference in the project profile first.
 4. When it finishes, read `decision`:
    - `ready-for-review`: the draft PR on `branch` has the build, the CI
-     job, verification evidence and docs. Request review.
-   - `blocked`: read `open` (verification failures) or `doc_problems`;
+     job, verification evidence and docs. For a work package, ship it without rebuilding: run
+     engineering-practices deliver-package with
+     `{ wp: "<the package>", prior: <the whole result> }`. With no work
+     package, land `handoff.branch` with engineering-practices land-pr
+     after review. `next` gives both commands.
+   - `blocked`: read `open` (verification failures or the handoff problem) or `doc_problems`;
      fix and rerun, or continue by hand on the same branch.
 5. Give `owner_actions` (for example, creating a signing certificate) to
    the owner.

@@ -4,7 +4,7 @@ export const meta = {
   description: 'Upgrade one dependency or toolchain (library, engine, compiler, SDK, runner image, CI action) end to end: target version from upstream, every reference found, exact pins with verified checksums, license and notice changes, cache keys, a before/after A/B on the same inputs, independent verification, docs. args: { dependency: "<name>" (required), to: "<target version, optional; default the latest stable>", why: "<reason, optional>" }',
   phases: [
     { title: 'Plan', detail: 'target version, every reference, pins and checksums, license and notice changes, cache keys, breaking changes, baseline measures' },
-    { title: 'Build', detail: 'one agent changes every reference on a branch, verifies checksums, updates notices, runs the build and tests, opens a draft PR' },
+    { title: 'Build', detail: 'one agent changes every reference on a branch, verifies checksums, updates notices, runs the build and tests, opens a draft PR; its push is the handoff for deliver-package or land-pr' },
     { title: 'Compare', detail: 'parallel read-only checks: A/B on the same inputs, integrity, licensing, caches, ownership; fix loop' },
     { title: 'Docs', detail: 'toolchain reference, upgrade notes, explanation of choices' },
     { title: 'Docs check', detail: 'one Diataxis kind per page' },
@@ -139,6 +139,7 @@ const PLAN = { type: 'object', properties: {
 }, required: ['branch', 'current', 'target', 'source', 'references', 'pins', 'breaking', 'license', 'caches', 'ab', 'cross_role', 'rollback', 'docs'] }
 
 const BUILD = { type: 'object', properties: {
+  branch: { type: 'string' },
   pr: { type: 'string' },
   head_sha: { type: 'string' },
   checksums_verified: { type: 'boolean' },
@@ -147,7 +148,8 @@ const BUILD = { type: 'object', properties: {
     measure: { type: 'string' }, after: { type: 'string' } }, required: ['measure', 'after'] } },
   runs: { type: 'array', items: { type: 'string' } },
   notes: { type: 'string' },
-}, required: ['pr', 'checksums_verified', 'tests_pass', 'after'] }
+  problem: { type: 'string' },
+}, required: ['branch', 'pr', 'checksums_verified', 'tests_pass', 'after'] }
 
 const CHECK = { type: 'object', properties: {
   blocking: { type: 'array', items: { type: 'string' } },
@@ -158,6 +160,12 @@ const CHECK = { type: 'object', properties: {
 const DOCCHECK = { type: 'object', properties: {
   problems: { type: 'array', items: { type: 'string' } },
 }, required: ['problems'] }
+
+const DOCS = { type: 'object', properties: {
+  pages: { type: 'array', items: { type: 'string' } },
+  undocumented: { type: 'array', items: { type: 'string' } },
+  head_sha: { type: 'string' },
+}, required: ['pages'] }
 
 phase('Plan')
 const plan = await agent(
@@ -198,12 +206,12 @@ const built = await agent(
 ${FACTS}
 Rules: change every listed reference in one PR, so no build mixes versions; pin each download by its immutable reference and verify its checksum against the upstream source in the build or pipeline, failing on mismatch; adapt the code for each breaking change with the smallest edit; update every notice, credits and third-party license file listed; change each listed cache key so it includes the new version; regenerate lockfiles and generated files with the project's tooling, never by hand. Every new file carries the project's license header.
 ${plan.cross_role.length ? 'Make each cross-role edit as planned, in its own commit, list it under "Cross-role edits" in the PR description and message each owner with the PR link (engineering-practices peer-coordination skill).' : ''}
-Run the project's build and tests, then each A/B measure on the new version with the same inputs and method as the before value. Commit (build: or chore(deps): Conventional Commits), push, open a draft PR whose description lists the version change, pins and checksums, breaking changes handled, notices changed, cache keys changed, and a before/after table. Run CI on the branch.
-Return the PR URL, head SHA, whether every checksum was verified, whether tests pass, each measure's after value, the CI run links, and notes.`,
+Run the project's build and tests, then each A/B measure on the new version with the same inputs and method as the before value. Commit (build: or chore(deps): Conventional Commits), push, open a draft PR whose description lists the version change, pins and checksums, breaking changes handled, notices changed, cache keys changed, and a before/after table. Run CI on the branch. Follow the engineering-practices git-workflow skill.
+Return the branch, the PR URL, head SHA, whether every checksum was verified, whether the build and tests pass on that head, each measure's after value, the CI run links, notes, and the problem if the build or tests fail.`,
   { schema: BUILD, phase: 'Build', label: 'build' })
 if (!built) return { decision: 'blocked', reason: 'build agent returned nothing', plan }
 if (!built.checksums_verified) return { decision: 'blocked', open: ['a download could not be verified against its upstream checksum'], pr: built.pr, plan }
-if (!built.tests_pass) return { decision: 'blocked', open: [`build or tests fail on ${plan.target}${built.notes ? ': ' + built.notes : ''}`], pr: built.pr, plan }
+if (!built.tests_pass) return { decision: 'blocked', open: [`build or tests fail on ${plan.target}${built.problem || built.notes ? ': ' + (built.problem || built.notes) : ''}`], pr: built.pr, plan }
 
 phase('Compare')
 const table = plan.ab.map((m) => {
@@ -241,8 +249,8 @@ ${FACTS}
 After values: ${JSON.stringify(table)}
 The reference page that lists toolchain and dependency versions must show ${plan.target}, its pinned reference and checksum source. If contributors must reinstall or clear a cache, the how-to says how.
 ${DOCS_FRAGMENT}
-Commit (docs: ...), push. Return pages touched.`,
-  { phase: 'Docs', label: 'docs' })
+Commit (docs: ...), push. Return the pages touched, any change left undocumented and why, and the head commit SHA after your push.`,
+  { schema: DOCS, phase: 'Docs', label: 'docs' })
 
 phase('Docs check')
 const dc = await agent(
@@ -250,7 +258,7 @@ const dc = await agent(
   { schema: DOCCHECK, phase: 'Docs check', label: 'docs-check', independent: true })
 const docProblems = !docs ? ['documentation agent returned nothing'] : !dc ? ['documentation check did not run; docs unverified'] : dc.problems
 
-return {
+const result = {
   decision: docProblems.length ? 'blocked' : 'ready-for-review',
   dependency: dep,
   from: plan.current,
@@ -267,5 +275,25 @@ return {
   doc_problems: docProblems,
   evidence,
   next: `after the code reviewer passes, run /engineering-practices:land-pr { pr: "${built.pr}" } (keeps the branch current, polls CI itself and squash-merges)`,
+}
+if (result.decision === 'blocked') return result
+
+// The handoff is what engineering-practices deliver-package takes as prior, built from
+// the Build step's push; the Build gate above already stops a red build.
+if (!built.branch) return { decision: 'blocked', open: [built.problem || 'build step returned no branch; the upgrade may be unpushed'], evidence, ab: table, pr: built.pr, plan }
+return {
+  ...result,
+  handoff: {
+    from: 'devops-engineer:upgrade-dependency',
+    branch: built.branch,
+    pr: built.pr || '',
+    head_sha: docs.head_sha || built.head_sha || '',
+    tests_pass: true,
+    docs: docs.pages || [],
+    undocumented: docs.undocumented || [],
+    notes: [`${dep} ${plan.current} -> ${plan.target}`]
+      .concat(plan.cross_role.map(c => `cross-role edit: ${c.path} (${c.owner})`)),
+  },
+  next: `ship it without rebuilding: /engineering-practices:deliver-package { wp: "<the package>", prior: <this result> }; with no work package, after the code reviewer passes, /engineering-practices:land-pr { pr: "${built.pr}" } (keeps the branch current, polls CI itself and squash-merges)`,
 }
 })(RUN.agent, RUN.phase, RUN.log)]); return RUN.finish(RUN_OUT)
