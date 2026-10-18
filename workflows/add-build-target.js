@@ -5,7 +5,7 @@ export const meta = {
   phases: [
     { title: 'Plan', detail: 'runner, toolchain pins, artifact name, signing, docs to touch' },
     { title: 'Build', detail: 'one agent implements the build script and CI job' },
-    { title: 'Verify', detail: 'parallel read-only checks: reproducibility, signing/store, compliance; fix loop' },
+    { title: 'Verify', detail: 'parallel read-only checks: reproducibility, real runtime, matrix, compliance, signing/store; fix loop' },
     { title: 'Docs', detail: 'reference row, how-to, explanation of choices' },
     { title: 'Docs check', detail: 'one Diataxis kind per page' },
   ],
@@ -118,10 +118,15 @@ const PLAN = { type: 'object', properties: {
   artifact_name: { type: 'string' },
   signing: { type: 'string' },
   owner_actions: { type: 'array', items: { type: 'string' } },
+  runtime_check: { type: 'object', properties: {
+    runtime: { type: 'string' }, command: { type: 'string' }, asserts: { type: 'string' } },
+    required: ['runtime', 'command', 'asserts'] },
+  has_sbom: { type: 'boolean' },
+  targets_page: { type: 'string' },
   docs: { type: 'array', items: { type: 'object', properties: {
     kind: { type: 'string', enum: ['tutorial', 'how-to', 'reference', 'explanation'] },
     page: { type: 'string' }, reason: { type: 'string' } }, required: ['kind', 'page', 'reason'] } },
-}, required: ['branch', 'runner', 'toolchain_pins', 'build_options', 'artifact_name', 'docs'] }
+}, required: ['branch', 'runner', 'toolchain_pins', 'build_options', 'artifact_name', 'runtime_check', 'has_sbom', 'docs'] }
 
 const CHECK = { type: 'object', properties: {
   blocking: { type: 'array', items: { type: 'string' } },
@@ -136,7 +141,10 @@ const DOCCHECK = { type: 'object', properties: {
 phase('Plan')
 const plan = await agent(
   `Plan a new build target "${target}"${store ? ` distributed through ${store}` : ''}; planning only, write nothing. Read the project's CLAUDE.md and profile. Follow the devops-engineer cross-platform-builds skill (method: adding a build target)${store ? ' and store-distribution skill' : ''}.
-Return: a branch name (e.g. build/add-${target}), runner choice and why, exact toolchain/SDK pins with checksum sources, the explicit build options the job will pass, the artifact name pattern, the signing approach, steps only the owner can take, and (Diataxis compass) the doc pages to touch: at least a reference row in the build targets table and a how-to "How to build ${target} locally"; an explanation if a runner or toolchain choice was made between alternatives.`,
+Return: a branch name (e.g. build/add-${target}), runner choice and why, exact toolchain/SDK pins with checksum sources (take each version from the vendor's release build: its release notes, published artifacts and checksums, or the version the release binary reports, never from the vendor's own CI configuration, which can track a branch or a newer image), the explicit build options the job will pass, the artifact name pattern, the signing approach, steps only the owner can take.
+runtime_check: how to run the built artifact in its real runtime, not only build it: the runtime (a headless browser for a web build, an emulator or device for mobile, the target OS for desktop or server), the one command that launches it in CI on committed content, and what it asserts (it loads, reaches its first screen or state, no runtime errors in the console or log, exit code).
+has_sbom: whether the project already produces an SBOM. targets_page: the existing reference page that lists build targets, or "" if the project has none.
+Docs (Diataxis compass): a reference entry for the target (a row in targets_page, or a new reference page for build targets if there is none), a how-to "How to build ${target} locally", and an explanation if a runner or toolchain choice was made between alternatives.`,
   { schema: PLAN, phase: 'Plan', label: 'plan' })
 if (!plan) return 'planning failed: no plan returned; nothing was built'
 
@@ -146,7 +154,8 @@ const built = await agent(
 - runner: ${plan.runner}
 - toolchain pins (verify each download's checksum or signature): ${plan.toolchain_pins.join('; ')}
 - explicit build options for this job: ${plan.build_options.join('; ')}
-- artifact: ${plan.artifact_name} plus SHA-256 checksum; smoke test on the target
+- artifact: ${plan.artifact_name} plus SHA-256 checksum
+- run it in its real runtime in CI after the build: ${plan.runtime_check.runtime}, \`${plan.runtime_check.command}\`, asserting ${plan.runtime_check.asserts}; run the same command locally before pushing
 Use one build script the developer can also run; the CI job calls it. Make sure any new option you add does not change the behaviour of existing jobs (set it explicitly in each). Every new file carries the project's license header, never a template default. Run the full matrix, commit (build:/ci: Conventional Commits), push, open a draft PR. Return the PR URL and CI run links.`,
   { phase: 'Build', label: 'build' })
 if (!built) return { decision: 'blocked', reason: 'build agent returned nothing', plan }
@@ -154,8 +163,9 @@ if (!built) return { decision: 'blocked', reason: 'build agent returned nothing'
 phase('Verify')
 const checks = [
   ['reproducibility', `Build ${target} twice from the PR head in clean environments (or compare two CI runs) and compare digests; walk the nondeterminism checklist; confirm a cold (no-cache) build passes and cache keys include OS, arch, toolchain version, lockfile hash and build config (cross-platform-builds skill).`],
+  ['runtime', `Run the built ${target} artifact from the PR head in its real runtime (${plan.runtime_check.runtime}) with \`${plan.runtime_check.command}\` and confirm ${plan.runtime_check.asserts}; read the console or log for runtime errors, not only the exit code. Confirm CI runs the same check after the build and fails when it fails (ci-pipelines, cross-platform-builds skills).`],
   ['matrix', `Confirm every pre-existing CI job still passes with unchanged behaviour, every job passes its build options explicitly, and all downloads are pinned and checksum-verified (ci-pipelines skill).`],
-  ['compliance', `Confirm the ${target} artifact is covered by the SBOM, bundles the notices file from the single credits source, new files carry the project license, and any new toolchain-bundled runtime libraries have recorded, compatible licenses (license-compliance, supply-chain-security skills).`],
+  ['compliance', `Confirm ${plan.has_sbom ? `the ${target} artifact is covered by the project's SBOM, and it` : `the ${target} artifact (the project produces no SBOM yet: suggest one under owner_actions or evidence, never as blocking)`} bundles the notices file from the single credits source, new files carry the project license, and any new toolchain-bundled runtime libraries have recorded, compatible licenses (license-compliance, supply-chain-security skills).`],
   ...(store ? [['store', `Draft or update the store sheet for ${store} for this target and confirm signing is set up in CI and verified after signing; list every owner-only step with exact instructions; never act in the owner's name (store-distribution skill). Return the sheet text in evidence; do not edit files.`]] : []),
 ]
 let open = []
