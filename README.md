@@ -29,6 +29,7 @@ project's `CLAUDE.md` and profile say with which tools.
   [add a build target](docs/how-to/how-to-add-a-build-target.md),
   [add or change a pipeline stage](docs/how-to/how-to-add-or-change-a-pipeline-stage.md),
   [upgrade a dependency or toolchain](docs/how-to/how-to-upgrade-a-dependency-or-toolchain.md),
+  [make a generated asset a build output](docs/how-to/how-to-make-a-generated-asset-a-build-output.md),
   [audit and harden the pipeline](docs/how-to/how-to-audit-and-harden-the-pipeline.md) and
   [make a repository REUSE-compliant](docs/how-to/how-to-make-a-repository-reuse-compliant.md).
 - **Look something up.** The [reference index](docs/reference/index.md)
