@@ -7,7 +7,7 @@ export const meta = {
     { title: 'Build', detail: 'one agent edits the pipeline on a branch, runs it and opens a draft PR; its push is the handoff for deliver-package or land-pr' },
     { title: 'Verify', detail: 'parallel read-only checks: behaviour, security, timing, ownership; fix loop' },
     { title: 'Required check', detail: 'decide whether the check gates merges, with evidence' },
-    { title: 'Docs', detail: 'pipeline reference, local-reproduction how-to, explanation of choices' },
+    { title: 'Docs', detail: 'check and complete the docs Build pushed: pipeline reference, local-reproduction how-to, explanation of choices' },
     { title: 'Docs check', detail: 'one Diataxis kind per page' },
   ],
 }
@@ -174,7 +174,7 @@ const DOCS = { type: 'object', properties: {
   pages: { type: 'array', items: { type: 'string' } },
   undocumented: { type: 'array', items: { type: 'string' } },
   head_sha: { type: 'string' },
-}, required: ['pages'] }
+}, required: ['pages', 'head_sha'] }
 
 phase('Plan')
 const plan = await agent(
@@ -217,19 +217,19 @@ const built = await agent(
   `As the only agent editing files, implement this pipeline change on branch ${plan.branch}:
 ${FACTS}
 Rules: one stage or check per change; set least-privilege permissions at the top of each pipeline file and grant write scopes only to the job that needs them; reference every third-party step by its pinned immutable reference and verify every download's checksum; pass untrusted input (PR titles, branch names) through environment variables, never into shell text; set each artifact's retention explicitly and upload nothing the plan did not list; every job passes its build options explicitly; keep the old path until the new one has run green. Give the stage a name that says what it checks, and make its failure message state the failure meaning and the local command. Every new file carries the project's license header.
-${plan.cross_role.length ? 'For each cross-role edit: make only the planned minimal edit, in its own commit, and list it under a "Cross-role edits" heading in the PR description (path, owner, what changed, why it could not live elsewhere). Then message each owner directly with that list and the PR link (engineering-practices peer-coordination skill).' : ''}
+${plan.cross_role.length ? 'For each cross-role edit: make only the planned minimal edit, in its own commit, and list it under a "Cross-role edits" heading in the PR description (path, owner, what changed, why it could not live elsewhere). Then tell each owner with that list and the PR link (engineering-practices peer-coordination skill): message the running session of the owning role directly; when no session for that role is running, tell the coordinator or project manager instead, naming the owner, so they can route it. Return who was told in the PR description under the same heading.' : ''}
 Commit (ci: or build: Conventional Commits), push, open a draft PR, and run the pipeline on the branch. Follow the engineering-practices git-workflow skill. Return the branch, the PR URL, the head commit SHA you pushed, the run links, the stage's duration and the affected pipelines' total durations from these runs, whether the run is green, whether the project's checks and tests pass on that head (tests_pass), and the problem if they do not.`,
   { schema: BUILD, phase: 'Build', label: 'build' })
 if (!built) return { decision: 'blocked', reason: 'build agent returned nothing', plan }
 
 phase('Verify')
 const checks = [
-  ['behaviour', `Confirm the stage does what its purpose says and fails for the right reason: show that a known-bad input turns it red with a message that states the failure meaning, and that the current head is green. For the red case a local run is enough and preferred: run the stage's own step script or "${plan.local_command}" on a known-bad input in a scratch copy, and quote its exit code and message. Never push a deliberately broken commit to CI to get a red run. The green case is the branch's CI run. Confirm every pre-existing job listed in scope still passes with unchanged behaviour and the triggers and path filters match the plan (ci-pipelines skill).`],
+  ['behaviour', `Confirm the stage does what its purpose says and fails for the right reason: show that a known-bad input turns it red with a message that states the failure meaning, and that the current head is green. For the red case a local run is enough and preferred: run the stage's own step script or "${plan.local_command}" on a known-bad input in a scratch copy, and quote its exit code and message. When the stage needs a toolchain or runner this environment cannot provide (a platform-only compiler, SDK or OS), a red baseline instead: cite a recent run of the same stage on the default branch (before this change) that failed for the reason the stage now reports or fixes, with its run link and the failing log lines, and say why a local run was impossible. Never push a deliberately broken commit to CI to get a red run. The green case is the branch's CI run. Confirm every pre-existing job listed in scope still passes with unchanged behaviour and the triggers and path filters match the plan (ci-pipelines skill).`],
   ['security', `Confirm least-privilege permissions (read-only default, write only where justified), every third-party step and download pinned and verified, no untrusted input interpolated into shell, no secrets reachable from fork or untrusted triggers, and each artifact's retention and contents match the plan. The repository is ${plan.repo_public ? 'public: confirm no secret, credential, signing material or uncleared build is uploaded, logged or cached' : 'private: confirm visibility still matches the plan'} (ci-pipelines, supply-chain-security skills).`],
   ['timing', `Compare the branch runs with the baseline (${plan.baseline}) and the budget (${plan.budget}): report the stage's duration and the change in total pipeline time, and whether caching is keyed correctly if added (cross-platform-builds skill). Over budget is blocking unless the plan gives a reason and the stage runs outside the PR path.`],
   ['ownership', plan.cross_role.length
-    ? `Confirm each cross-role edit is the minimal planned one (${JSON.stringify(plan.cross_role)}), sits in its own commit, is listed under "Cross-role edits" in the PR description, and that each owner was messaged with the PR link; and that no other path outside the role's owned paths changed.`
-    : 'Confirm the diff touches only paths the profile assigns to the DevOps role (or shared append-only files); any other path is blocking unless it is listed under "Cross-role edits" in the PR description with its owner notified.'],
+    ? `Confirm each cross-role edit is the minimal planned one (${JSON.stringify(plan.cross_role)}), sits in its own commit, is listed under "Cross-role edits" in the PR description, and that each owner was told with the PR link (directly, or through the coordinator or project manager when the owning role has no running session); and that no other path outside the role's owned paths changed.`
+    : 'Confirm the diff touches only paths the profile assigns to the DevOps role (or shared append-only files); any other path is blocking unless it is listed under "Cross-role edits" in the PR description with its owner notified (directly, or through the coordinator or project manager when the owning role has no running session).'],
 ]
 let open = []
 let owner_actions = plan.owner_actions || []
@@ -260,13 +260,13 @@ if (gate) owner_actions = [...new Set([...owner_actions, ...(gate.owner_actions 
 
 phase('Docs')
 const docs = await agent(
-  `On ${plan.branch}, as the only agent editing docs, document this pipeline change.
+  `On ${plan.branch}, as the only agent editing docs, check and complete the docs for this pipeline change. The Build step may already have pushed docs with the code: read the branch's diff first, keep what is right, correct what is wrong or stale, add only what is missing, and do not duplicate a page or section that exists.
 Pages planned: ${JSON.stringify(plan.docs)}
 ${FACTS}
 Required check: ${gate ? `${gate.decision}${gate.green_runs_needed ? ` after ${gate.green_runs_needed} more green runs` : ''}: ${gate.reason}` : 'undecided (decision step returned nothing)'}
 The pipeline reference must list the stage's name, purpose, triggers, failure meaning, local command, permissions, artifacts with retention and visibility, and whether it is required.
 ${DOCS_FRAGMENT}
-Commit (docs: ...), push. Return the pages touched, any change left undocumented and why, and the head commit SHA after your push.`,
+If anything changed, commit (docs: ...) and push; if nothing needed changing, push nothing. Return the pages touched or confirmed, any change left undocumented and why, and head_sha: the branch's head commit SHA after this step (your push, or the current remote head of the branch if you pushed nothing, which includes any Verify fix pushes).`,
   { schema: DOCS, phase: 'Docs', label: 'docs' })
 
 phase('Docs check')
@@ -300,7 +300,7 @@ return {
     from: 'devops-engineer:change-pipeline',
     branch: built.branch,
     pr: built.pr || '',
-    head_sha: docs.head_sha || built.head_sha || '',
+    head_sha: docs.head_sha || '',
     tests_pass: true,
     docs: docs.pages || [],
     undocumented: docs.undocumented || [],
