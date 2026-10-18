@@ -78,7 +78,7 @@ engineering-practices
 [deliver-package](https://github.com/opsroller/engineering-practices/blob/main/docs/reference/workflow-deliver-package.md)
 takes as `prior`, so pass the whole result and the work ships without
 being built again: `from` (`devops-engineer:change-pipeline`), `branch`, `pr`,
-`head_sha` (the Docs step's push if it pushed, else the Build step's), `tests_pass`,
+`head_sha` (the branch head after the Docs step: its push, or the remote head, Verify fixes included, if it pushed nothing), `tests_pass`,
 `docs`, `undocumented`, `notes` (required-check decision, cross-role edits, owner actions). With no work package, land the
 branch with land-pr instead; `next` names both.
 

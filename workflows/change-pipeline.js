@@ -174,7 +174,7 @@ const DOCS = { type: 'object', properties: {
   pages: { type: 'array', items: { type: 'string' } },
   undocumented: { type: 'array', items: { type: 'string' } },
   head_sha: { type: 'string' },
-}, required: ['pages'] }
+}, required: ['pages', 'head_sha'] }
 
 phase('Plan')
 const plan = await agent(
@@ -266,7 +266,7 @@ ${FACTS}
 Required check: ${gate ? `${gate.decision}${gate.green_runs_needed ? ` after ${gate.green_runs_needed} more green runs` : ''}: ${gate.reason}` : 'undecided (decision step returned nothing)'}
 The pipeline reference must list the stage's name, purpose, triggers, failure meaning, local command, permissions, artifacts with retention and visibility, and whether it is required.
 ${DOCS_FRAGMENT}
-If anything changed, commit (docs: ...) and push; if nothing needed changing, push nothing. Return the pages touched or confirmed, any change left undocumented and why, and the head commit SHA after your push.`,
+If anything changed, commit (docs: ...) and push; if nothing needed changing, push nothing. Return the pages touched or confirmed, any change left undocumented and why, and head_sha: the branch's head commit SHA after this step (your push, or the current remote head of the branch if you pushed nothing, which includes any Verify fix pushes).`,
   { schema: DOCS, phase: 'Docs', label: 'docs' })
 
 phase('Docs check')
@@ -300,7 +300,7 @@ return {
     from: 'devops-engineer:change-pipeline',
     branch: built.branch,
     pr: built.pr || '',
-    head_sha: docs.head_sha || built.head_sha || '',
+    head_sha: docs.head_sha || '',
     tests_pass: true,
     docs: docs.pages || [],
     undocumented: docs.undocumented || [],
