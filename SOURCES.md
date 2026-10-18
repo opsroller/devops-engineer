@@ -23,6 +23,10 @@ Fetched October 2026.
 - **Forsgren, Humble and Kim, *Accelerate* (IT Revolution, 2018)** - book - the research showing throughput and stability improve together; the "why it matters" in the explanation page.
 - **Continuous Delivery principles (Humble and Farley)** - https://continuousdelivery.com/principles/ - build quality in, small batches, automation, everyone responsible; pipeline shape in `ci-pipelines`.
 - **Trunk Based Development, context** - https://trunkbaseddevelopment.com/context - CI/TBD relationship; branching model choice.
+- **OWASP Top 10 CI/CD Security Risks** - https://owasp.org/www-project-top-10-ci-cd-security-risks/ - CICD-SEC-1 to 10 (flow control, poisoned pipeline execution, pipeline-based access control, credential hygiene, artifact integrity); the security check in `change-pipeline`.
+- **GitHub Docs, "Secure use reference" (GitHub Actions)** - https://docs.github.com/en/actions/reference/security/secure-use - read-only default token raised per job, full-length commit SHA as the only immutable action reference, untrusted input via environment variables, avoid `pull_request_target`; an example of the provider-neutral rules in `ci-pipelines`.
+- **GitHub Docs, "Downloading workflow artifacts"** - https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts - anyone signed in with read access can download artifacts; 90-day default retention; why `change-pipeline` sets retention explicitly and treats public repositories as readable by all.
+- **GitLab Docs, "Job artifacts"** - https://docs.gitlab.com/ci/jobs/job_artifacts - `expire_in` and `artifacts:access` as a second provider's form of retention and download control.
 - **Diataxis** - https://diataxis.fr - documentation structure, followed via the project's Diataxis guide.
 
 ## Job postings (responsibilities and skill mix)
@@ -34,7 +38,6 @@ Fetched October 2026.
 - **thatgamecompany, Build Engineer** - https://www.builtinboston.com/job/build-engineer/10969845 - multi-platform build and release, storefront tooling, release coordination, documentation.
 
 Not fetched directly (search budget ran out): individual store guidelines
-(e.g. Apple App Review Guidelines, Google Play policy) and the OWASP Top 10
-CI/CD Security Risks. `store-distribution` therefore tells the role to read
+(e.g. Apple App Review Guidelines, Google Play policy). `store-distribution` therefore tells the role to read
 each store's current guidelines before every submission instead of
 encoding them.

@@ -1,6 +1,6 @@
 {
   "name": "devops-engineer",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "DevOps / build and release engineer: CI/CD pipelines, reproducible cross-platform builds and caching, semantic-versioned releases, store distribution and signing, supply-chain security (pinning, SBOM, SLSA provenance), license compliance automation, and pipeline observability with DORA metrics.",
   "author": {
     "name": "opsroller"
