@@ -7,7 +7,7 @@ File: `.claude-plugin/plugin.json`.
 | Field | Value |
 |---|---|
 | `name` | `devops-engineer` |
-| `version` | `0.3.0` |
+| `version` | `0.4.0` |
 | `description` | one-sentence summary of the role |
 | `author.name` | `opsroller` |
 | `repository` | `https://github.com/opsroller/devops-engineer` |
