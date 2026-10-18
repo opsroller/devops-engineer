@@ -6,7 +6,7 @@
 |---|---|
 | File | `skills/cross-platform-builds/SKILL.md` |
 | Used when | adding or fixing a build target, making builds reproducible, pinning toolchains, designing caches |
-| Produces | build scripts, CI matrix entries, build targets table |
+| Produces | build scripts, CI matrix entries, a real-runtime smoke test per target, a build targets table row when the project has one |
 
 ## Levels
 
@@ -15,6 +15,10 @@
 | Repeatable | clean-checkout CI build, one command per target |
 | Hermetic | every input declared and pinned; no undeclared network access |
 | Reproducible | two independent builds give identical bytes |
+
+## Toolchain versions
+
+Take each version from the vendor's release build (release notes, published artifacts and checksums), never from the vendor's CI configuration.
 
 ## Artifact naming
 

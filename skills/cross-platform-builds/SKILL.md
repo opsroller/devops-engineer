@@ -35,13 +35,19 @@ the main artifacts.
    toolchain supports it cleanly. Record why.
 3. Pin the toolchain and SDK versions in the repository (a version file,
    container image digest or toolchain manifest), not in runner setup by
-   hand.
+   hand. Take each version from the vendor's release build (release
+   notes, published artifacts and checksums, or what the release binary
+   reports), never from the vendor's own CI configuration, which can
+   track a branch or a newer image than the release used.
 4. Write the build as a script the developer can also run; CI calls the
    same script. Pass configuration explicitly (target, arch, build type).
 5. Produce a named, versioned artifact: `<name>-<version>-<os>-<arch>.<ext>`,
    plus a SHA-256 checksum.
-6. Smoke-test the packaged artifact on the target (launch, basic check,
-   exit code) in CI.
+6. Smoke-test the packaged artifact in its real runtime in CI: a
+   headless browser for a web build, an emulator or device for mobile,
+   the target OS for desktop. Launch it on committed content and check it
+   reaches its first screen with no runtime errors in the console or log,
+   not only the exit code. A build that compiles can still fail there.
 7. Add it to the integration matrix; mark it required once stable.
 8. Hand signing to `store-distribution` and the SBOM/provenance to
    `supply-chain-security`.

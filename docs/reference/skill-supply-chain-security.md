@@ -27,3 +27,5 @@ Based on the OpenSSF Scorecard checks: branch protection, code review, binary ar
 ## Docs owed
 
 Reference for dependency policy and SBOM/provenance format; how-to for verifying signatures and adding dependencies; explanation for posture decisions.
+
+[upgrade-dependency](workflow-upgrade-dependency.md) applies pinning and checksum verification to one dependency or toolchain upgrade.

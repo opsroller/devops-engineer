@@ -18,7 +18,10 @@ reproducible CI build, using the `add-build-target` workflow.
    If the target ships through a store, add `store`, for example
    `{ target: "android-arm64", store: "<store name>" }`.
 3. Review the plan the workflow logs (runner, toolchain pins, build
-   options, artifact name). If you disagree with the runner choice, stop
+   options, artifact name, `runtime_check`). Check that `runtime_check`
+   really runs the artifact where players run it, for example a headless
+   browser for a web build, and that each toolchain version comes from
+   the vendor's release, not its CI configuration. If you disagree with the runner choice, stop
    the run and record your preference in the project profile first.
 4. When it finishes, read `decision`:
    - `ready-for-review`: the draft PR on `branch` has the build, the CI
