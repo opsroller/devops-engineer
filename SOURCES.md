@@ -27,6 +27,8 @@ Fetched October 2026.
 - **GitHub Docs, "Secure use reference" (GitHub Actions)** - https://docs.github.com/en/actions/reference/security/secure-use - read-only default token raised per job, full-length commit SHA as the only immutable action reference, untrusted input via environment variables, avoid `pull_request_target`; an example of the provider-neutral rules in `ci-pipelines`.
 - **GitHub Docs, "Downloading workflow artifacts"** - https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts - anyone signed in with read access can download artifacts; 90-day default retention; why `change-pipeline` sets retention explicitly and treats public repositories as readable by all.
 - **GitLab Docs, "Job artifacts"** - https://docs.gitlab.com/ci/jobs/job_artifacts - `expire_in` and `artifacts:access` as a second provider's form of retention and download control.
+- **GitHub Docs, "Dependency caching" reference** - https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching - cache keys, restore keys and branch scope (a branch reads its own and the default branch's caches); the cache rules in `build-generated-asset`.
+- **CMake, `add_custom_command`** - https://cmake.org/cmake/help/latest/command/add_custom_command.html - `OUTPUT` and `DEPENDS` so a generator reruns only when inputs change; an example of the build target in `build-generated-asset`.
 - **Diataxis** - https://diataxis.fr - documentation structure, followed via the project's Diataxis guide.
 
 ## Job postings (responsibilities and skill mix)

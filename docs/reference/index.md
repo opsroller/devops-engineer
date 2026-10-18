@@ -3,7 +3,7 @@
 *Reference landing page, for users of the devops-engineer plugin who need
 to look up what a part of it is or takes.*
 
-The plugin has one agent, seven skills and five workflows. Each has its own
+The plugin has one agent, seven skills and six workflows. Each has its own
 page with the same layout.
 
 ## Agent
@@ -31,6 +31,7 @@ Trust and evidence:
 - [add-build-target](workflow-add-build-target.md): add one platform target end to end.
 - [change-pipeline](workflow-change-pipeline.md): add or change one CI/CD stage or check end to end.
 - [upgrade-dependency](workflow-upgrade-dependency.md): upgrade one dependency or toolchain with pins, checksums, notices, cache keys and a before/after comparison.
+- [build-generated-asset](workflow-build-generated-asset.md): make a generated asset a cached build output instead of a committed file.
 
 ## Plugin
 

@@ -28,6 +28,10 @@ Take each version from the vendor's release build (release notes, published arti
 
 Timestamps (`SOURCE_DATE_EPOCH`), file order, locale and timezone, absolute paths, randomness, unpinned inputs, host features, parallel output order.
 
+## Generated assets
+
+Built, not committed: a build target with declared inputs and outputs, one reusable CI step keyed on a hash of generator, inputs and tool versions, outputs ignored. [build-generated-asset](workflow-build-generated-asset.md) runs the method.
+
 ## Cache rules
 
 - Key includes OS, arch, toolchain version, lockfile hash, build config.

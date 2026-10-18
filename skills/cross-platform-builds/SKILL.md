@@ -54,6 +54,25 @@ the main artifacts.
 9. Document: reference row for the target (runner, toolchain, artifact
    name, command), how-to "How to build <target> locally".
 
+## Method: generated assets as build outputs
+
+Files a script produces from tracked inputs are built, not committed.
+The `build-generated-asset` workflow runs these steps with independent
+verification (`/devops-engineer:build-generated-asset`).
+
+1. List the generator, its tools and versions, every input, every
+   output and every consumer (CI jobs, exports, import steps).
+2. Add a build-system target with inputs and outputs declared, so an
+   incremental build reruns the generator only when an input changes,
+   and make consumers depend on it.
+3. Add one reusable CI step (composite action or template) that pins
+   the tools, keys a cache on a hash of the generator, inputs and tool
+   versions, runs the target on a miss, and is called by every consumer.
+4. Ignore the outputs and untrack the committed copies; keep inputs and
+   the generator tracked.
+5. Verify from a clean checkout with no cache, show a cold miss and a
+   warm hit, and compare digests of two runs (see the checklist below).
+
 ## Nondeterminism checklist
 
 | Source | Fix |
