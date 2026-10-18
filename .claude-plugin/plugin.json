@@ -1,0 +1,14 @@
+{
+  "name": "devops-engineer",
+  "version": "0.1.0",
+  "description": "DevOps engineer: CI pipelines, cross-platform builds, releases from Conventional Commits, store submissions, and open-source license compliance and credits.",
+  "author": {
+    "name": "opsroller"
+  },
+  "repository": "https://github.com/opsroller/devops-engineer",
+  "license": "MIT",
+  "keywords": [
+    "role",
+    "job-function"
+  ]
+}
