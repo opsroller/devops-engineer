@@ -77,7 +77,7 @@ const dc = await agent(
   { schema: DOCCHECK, phase: 'Docs check', label: 'docs-check' })
 
 phase('Go/no-go')
-const blockers = results.flatMap(r => (r.blockers || []).map(b => `${r.area}: ${b}`))
+const blockers = results.flatMap(r => (r.blockers && r.blockers.length) ? r.blockers.map(b => `${r.area}: ${b}`) : (r.status === 'fail' ? [`${r.area}: check failed without listing blockers`] : []))
 if (!docs) blockers.push('docs: documentation agent returned nothing')
 if (!dc) blockers.push('docs: documentation check did not run; docs unverified')
 else blockers.push(...dc.problems.map(p => `docs: ${p}`))
@@ -94,5 +94,5 @@ return {
   docs_pr: docs || null,
   next: blockers.length
     ? 'Fix the blockers (or get written owner acceptance) and run release-readiness again.'
-    : `Ready: once the project-manager confirms, tag v${version} on the checked commit; the release stage promotes, signs and publishes.`,
+    : `Ready: once the release is approved per the project's release process, tag v${version} on the checked commit; the release stage promotes, signs and publishes.`,
 }
