@@ -86,7 +86,7 @@ The Repin step commits, pushes and opens the draft PR. On
 `ready-for-review`, `handoff` is the object engineering-practices
 [deliver-package](https://github.com/opsroller/engineering-practices/blob/main/docs/reference/workflow-deliver-package.md)
 takes as `prior`: `from` (`devops-engineer:repin-lockfile`), `branch`,
-`pr`, `head_sha`, `tests_pass`, `docs`, `undocumented`, `notes` (the
+`pr`, `head_sha` (the last check fix round's push, else the Repin step's), `tests_pass`, `docs`, `undocumented`, `notes` (the
 repin, cross-role edits).
 
 ## Run modes

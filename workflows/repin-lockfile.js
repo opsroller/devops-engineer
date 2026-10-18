@@ -140,6 +140,11 @@ const REPIN = { type: 'object', properties: {
   problem: { type: 'string' },
 }, required: ['branch', 'pr', 'versions_unchanged', 'version_diff', 'marker_changes', 'install_pass', 'install_run'] }
 
+const FIX = { type: 'object', properties: {
+  head_sha: { type: 'string' },
+  install_pass: { type: 'boolean' },
+}, required: ['head_sha', 'install_pass'] }
+
 const CHECK = { type: 'object', properties: {
   blocking: { type: 'array', items: { type: 'string' } },
   evidence: { type: 'array', items: { type: 'string' } },
@@ -187,11 +192,13 @@ Return the branch, PR URL, head SHA, whether the version sets are identical, eve
   { schema: REPIN, phase: 'Repin', label: 'repin' })
 if (!done) return { decision: 'blocked', reason: 'repin agent returned nothing', plan }
 if (!done.versions_unchanged || (done.version_diff || []).length) return { decision: 'blocked', open: [`versions changed: ${(done.version_diff || []).join('; ') || 'reported changed'}`], pr: done.pr, next: 'a version change is an upgrade: run /devops-engineer:upgrade-dependency, then repin', plan }
+if (!done.branch) return { decision: 'blocked', open: [done.problem || 'repin step returned no branch; the change may be unpushed'], pr: done.pr, plan }
 if (!done.install_pass) return { decision: 'blocked', open: [`hash-enforced install or consuming step fails on ${target}${done.problem ? ': ' + done.problem : ''}`], pr: done.pr, run_link: done.install_run, plan }
 
 phase('Check')
 let open = []
 let evidence = []
+let head = done.head_sha || ''
 for (let round = 1; round <= 2; round++) {
   const r = await agent(
     `Check the lockfile repin in PR ${done.pr}, branch ${plan.branch}, against the default branch:
@@ -202,12 +209,12 @@ Read-only: do not edit, commit or push. Return blocking findings and evidence (r
   open = r ? r.blocking : ['checker returned nothing; unverified']
   evidence = r ? r.evidence : []
   if (!open.length || round === 2) break
-  const f = await agent(`On ${plan.branch}, as the only editor, fix these findings by regenerating with the planned tool or moving references, re-run the verify command on ${target}, commit and push. Never edit the lockfile by hand or change a package version:\n- ${open.join('\n- ')}`, { phase: 'Check', label: `fix:${round}` })
+  const f = await agent(`On ${plan.branch}, as the only editor, fix these findings by regenerating with the planned tool or moving references, re-run the verify command on ${target}, commit and push. Never edit the lockfile by hand or change a package version. Return the branch head SHA after your push and whether the verify command passes:\n- ${open.join('\n- ')}`, { schema: FIX, phase: 'Check', label: `fix:${round}` })
   if (!f) break
+  head = f.head_sha || ''
 }
 if (open.length) return { decision: 'blocked', open, evidence, pr: done.pr, plan }
 
-if (!done.branch) return { decision: 'blocked', open: [done.problem || 'repin step returned no branch; the change may be unpushed'], evidence, pr: done.pr, plan }
 return {
   decision: 'ready-for-review',
   lockfile,
@@ -226,7 +233,7 @@ return {
     from: 'devops-engineer:repin-lockfile',
     branch: done.branch,
     pr: done.pr || '',
-    head_sha: done.head_sha || '',
+    head_sha: head,
     tests_pass: true,
     docs: done.docs || [],
     undocumented: [],
