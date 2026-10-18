@@ -4,7 +4,7 @@ export const meta = {
   description: 'Add or change one CI/CD stage or check end to end: purpose and failure meaning, scope, pinned tools, least-privilege permissions, artifact retention and visibility, a run on a branch compared with baseline timings, independent verification, the pipeline reference doc, and the required-check decision. args: { change: "<the stage or check to add or change, and why>" (required), required?: "yes"|"no"|"decide" (default "decide") }',
   phases: [
     { title: 'Plan', detail: 'purpose, failure meaning, scope, pins, permissions, artifacts, baseline, owned paths, docs' },
-    { title: 'Build', detail: 'one agent edits the pipeline on a branch, runs it and opens a draft PR' },
+    { title: 'Build', detail: 'one agent edits the pipeline on a branch, runs it and opens a draft PR; its push is the handoff for deliver-package or land-pr' },
     { title: 'Verify', detail: 'parallel read-only checks: behaviour, security, timing, ownership; fix loop' },
     { title: 'Required check', detail: 'decide whether the check gates merges, with evidence' },
     { title: 'Docs', detail: 'pipeline reference, local-reproduction how-to, explanation of choices' },
@@ -143,11 +143,15 @@ const PLAN = { type: 'object', properties: {
 }, required: ['branch', 'purpose', 'failure_meaning', 'local_command', 'scope', 'pins', 'permissions', 'artifacts', 'repo_public', 'baseline', 'budget', 'cross_role', 'rollback', 'docs'] }
 
 const BUILD = { type: 'object', properties: {
+  branch: { type: 'string' },
   pr: { type: 'string' },
+  head_sha: { type: 'string' },
   runs: { type: 'array', items: { type: 'string' } },
   timings: { type: 'string' },
   result: { type: 'string', enum: ['green', 'red'] },
-}, required: ['pr', 'runs', 'timings', 'result'] }
+  tests_pass: { type: 'boolean' },
+  problem: { type: 'string' },
+}, required: ['branch', 'pr', 'runs', 'timings', 'result', 'tests_pass'] }
 
 const CHECK = { type: 'object', properties: {
   blocking: { type: 'array', items: { type: 'string' } },
@@ -165,6 +169,12 @@ const GATE = { type: 'object', properties: {
 const DOCCHECK = { type: 'object', properties: {
   problems: { type: 'array', items: { type: 'string' } },
 }, required: ['problems'] }
+
+const DOCS = { type: 'object', properties: {
+  pages: { type: 'array', items: { type: 'string' } },
+  undocumented: { type: 'array', items: { type: 'string' } },
+  head_sha: { type: 'string' },
+}, required: ['pages'] }
 
 phase('Plan')
 const plan = await agent(
@@ -208,7 +218,7 @@ const built = await agent(
 ${FACTS}
 Rules: one stage or check per change; set least-privilege permissions at the top of each pipeline file and grant write scopes only to the job that needs them; reference every third-party step by its pinned immutable reference and verify every download's checksum; pass untrusted input (PR titles, branch names) through environment variables, never into shell text; set each artifact's retention explicitly and upload nothing the plan did not list; every job passes its build options explicitly; keep the old path until the new one has run green. Give the stage a name that says what it checks, and make its failure message state the failure meaning and the local command. Every new file carries the project's license header.
 ${plan.cross_role.length ? 'For each cross-role edit: make only the planned minimal edit, in its own commit, and list it under a "Cross-role edits" heading in the PR description (path, owner, what changed, why it could not live elsewhere). Then message each owner directly with that list and the PR link (engineering-practices peer-coordination skill).' : ''}
-Commit (ci: or build: Conventional Commits), push, open a draft PR, and run the pipeline on the branch. Return the PR URL, the run links, the stage's duration and the affected pipelines' total durations from these runs, and whether the run is green.`,
+Commit (ci: or build: Conventional Commits), push, open a draft PR, and run the pipeline on the branch. Follow the engineering-practices git-workflow skill. Return the branch, the PR URL, the head commit SHA you pushed, the run links, the stage's duration and the affected pipelines' total durations from these runs, whether the run is green, whether the project's checks and tests pass on that head (tests_pass), and the problem if they do not.`,
   { schema: BUILD, phase: 'Build', label: 'build' })
 if (!built) return { decision: 'blocked', reason: 'build agent returned nothing', plan }
 
@@ -224,6 +234,7 @@ const checks = [
 let open = []
 let owner_actions = plan.owner_actions || []
 let evidence = []
+let fixed = false
 for (let round = 1; round <= 3; round++) {
   const res = await pipeline(checks, ([name, task]) =>
     agent(`${task}\nPR ${built.pr}, branch ${plan.branch}. Read-only: do not edit, commit or push; return findings with evidence (run links, file:line).`, { schema: CHECK, phase: 'Verify', label: `${name}:${round}`, independent: true })
@@ -234,6 +245,7 @@ for (let round = 1; round <= 3; round++) {
   if (!open.length || round === 3) break
   const f = await agent(`On ${plan.branch}, as the only editor, fix these verification findings, rerun the pipeline, commit and push. Never disable or weaken a check to get green:\n- ${open.join('\n- ')}`, { phase: 'Verify', label: `fix:${round}` })
   if (!f) break
+  fixed = true
 }
 if (open.length) return { decision: 'blocked', open, owner_actions, evidence, pr: built.pr, plan }
 
@@ -254,8 +266,8 @@ ${FACTS}
 Required check: ${gate ? `${gate.decision}${gate.green_runs_needed ? ` after ${gate.green_runs_needed} more green runs` : ''}: ${gate.reason}` : 'undecided (decision step returned nothing)'}
 The pipeline reference must list the stage's name, purpose, triggers, failure meaning, local command, permissions, artifacts with retention and visibility, and whether it is required.
 ${DOCS_FRAGMENT}
-Commit (docs: ...), push. Return pages touched.`,
-  { phase: 'Docs', label: 'docs' })
+Commit (docs: ...), push. Return the pages touched, any change left undocumented and why, and the head commit SHA after your push.`,
+  { schema: DOCS, phase: 'Docs', label: 'docs' })
 
 phase('Docs check')
 const dc = await agent(
@@ -263,7 +275,7 @@ const dc = await agent(
   { schema: DOCCHECK, phase: 'Docs check', label: 'docs-check', independent: true })
 const docProblems = !docs ? ['documentation agent returned nothing'] : !dc ? ['documentation check did not run; docs unverified'] : dc.problems
 
-return {
+const result = {
   decision: docProblems.length || !gate ? 'blocked' : 'ready-for-review',
   branch: plan.branch,
   pr: built.pr,
@@ -275,5 +287,27 @@ return {
   doc_problems: docProblems,
   owner_actions,
   evidence,
+}
+if (result.decision === 'blocked') return result
+
+// The handoff is what engineering-practices deliver-package takes as prior, built from
+// the Build step's push (a fix round that then verified clean counts as green).
+if (!built.branch) return { decision: 'blocked', open: [built.problem || 'build step returned no branch; the change may be unpushed'], owner_actions, evidence, pr: built.pr, plan }
+if (!built.tests_pass && !fixed) return { decision: 'blocked', open: [`checks fail on ${built.branch}${built.head_sha ? ' at ' + built.head_sha : ''}: ${built.problem || 'no details'}`], owner_actions, evidence, pr: built.pr, plan }
+return {
+  ...result,
+  handoff: {
+    from: 'devops-engineer:change-pipeline',
+    branch: built.branch,
+    pr: built.pr || '',
+    head_sha: docs.head_sha || built.head_sha || '',
+    tests_pass: true,
+    docs: docs.pages || [],
+    undocumented: docs.undocumented || [],
+    notes: [`required check: ${gate.decision}${gate.green_runs_needed ? ` after ${gate.green_runs_needed} more green runs` : ''}`]
+      .concat(plan.cross_role.map(c => `cross-role edit: ${c.path} (${c.owner})`))
+      .concat(owner_actions.map(a => `owner action: ${a}`)),
+  },
+  next: `ship it without rebuilding: /engineering-practices:deliver-package { wp: "<the package>", prior: <this result> }; with no work package, /engineering-practices:land-pr { branch: "${built.branch}" }`,
 }
 })(RUN.agent, RUN.phase, RUN.log)]); return RUN.finish(RUN_OUT)

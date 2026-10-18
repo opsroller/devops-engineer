@@ -23,7 +23,7 @@ Missing `dependency` returns a usage string.
 | Phase | Agents | Writes |
 |---|---|---|
 | Plan | 1 | nothing |
-| Build | 1 | every reference, pins and checksum checks, notices, cache keys, code for breaking changes; cross-role edits only as planned, one commit each |
+| Build | 1 | every reference, pins and checksum checks, notices, cache keys, code for breaking changes; cross-role edits only as planned, one commit each; pushes, opens a draft PR and returns the branch, head SHA and whether the build and tests pass |
 | Compare | `ab`, `integrity`, `licensing`, `caches`, `ownership`; up to 3 rounds with a fixer | fixer only |
 | Docs | 1 | toolchain reference, how-to, explanation |
 | Docs check | 1 | nothing |
@@ -72,10 +72,28 @@ An incompatible license also ends the run before Build.
 | `branch`, `pr` | where the change is |
 | `pins`, `breaking`, `license`, `caches`, `cross_role`, `rollback` | from the plan |
 | `ab` | before/after table: `measure`, `how`, `before`, `after`, `tolerance` |
-| `open` | blocking findings (only when blocked) |
+| `open` | blocking findings, or the handoff problem (only when blocked) |
 | `doc_problems` | docs check problems |
 | `evidence` | per check evidence |
-| `next` | land the PR with engineering-practices land-pr after the code reviewer passes it |
+| `handoff` | only on `ready-for-review`: the deliver-package `prior` object (see Handoff) |
+| `next` | ship with deliver-package for a work package; otherwise land the PR with engineering-practices land-pr after the code reviewer passes it |
+
+## Handoff
+
+There is no separate Handoff step: the Build step already commits, pushes
+and opens the draft PR, and also returns `branch`, `head_sha` and
+`tests_pass`. On `ready-for-review`, `handoff` is the object
+engineering-practices
+[deliver-package](https://github.com/opsroller/engineering-practices/blob/main/docs/reference/workflow-deliver-package.md)
+takes as `prior`, so pass the whole result and the work ships without
+being built again: `from` (`devops-engineer:upgrade-dependency`), `branch`, `pr`,
+`head_sha` (the Docs step's push, else the Build step's), `tests_pass`,
+`docs`, `undocumented`, `notes` (the version change, cross-role edits). With no work package, land the
+branch with land-pr instead; `next` names both.
+
+If the Build step returned no branch, the run is `blocked` with `open`
+naming the problem and no `handoff`; a red build already stops the run
+at the Build gate.
 
 ## Run modes
 

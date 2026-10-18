@@ -22,7 +22,7 @@ Missing `target` returns a usage string.
 | Phase | Agents | Writes |
 |---|---|---|
 | Plan | 1 | nothing |
-| Build | 1 | build script, CI job, a CI step that runs the artifact in its real runtime |
+| Build | 1 | build script, CI job, a CI step that runs the artifact in its real runtime; pushes, opens a draft PR and returns the branch, head SHA and whether the matrix and runtime check pass |
 | Verify | `reproducibility`, `runtime`, `matrix`, `compliance`, plus `store` if given; up to 3 rounds with a fixer | fixer only |
 | Docs | 1 | build targets reference (a row in the project's targets page, or a new page if it has none), how-to, explanation, store sheet |
 | Docs check | 1 | nothing |
@@ -51,10 +51,29 @@ Missing `target` returns a usage string.
 |---|---|
 | `decision` | `ready-for-review` or `blocked` |
 | `target`, `branch` | what and where |
-| `open` | verification failures (only when blocked in Verify) |
+| `open` | verification failures (only when blocked in Verify), or the handoff problem (no branch, or checks not green) |
 | `doc_problems` | docs check problems |
 | `owner_actions` | owner-only steps |
 | `evidence` | per check evidence |
+| `handoff` | only on `ready-for-review`: the deliver-package `prior` object (see Handoff) |
+| `next` | only on `ready-for-review`: ship with deliver-package for a work package, otherwise land-pr |
+
+## Handoff
+
+There is no separate Handoff step: the Build step already commits, pushes
+and opens the draft PR, and also returns `branch`, `head_sha` and
+`tests_pass`. On `ready-for-review`, `handoff` is the object
+engineering-practices
+[deliver-package](https://github.com/opsroller/engineering-practices/blob/main/docs/reference/workflow-deliver-package.md)
+takes as `prior`, so pass the whole result and the work ships without
+being built again: `from` (`devops-engineer:add-build-target`), `branch`, `pr`,
+`head_sha` (the Docs step's push, else the Build step's), `tests_pass`,
+`docs`, `undocumented`, `notes` (owner actions). With no work package, land the
+branch with land-pr instead; `next` names both.
+
+If the Build step returned no branch, or its checks were not green and
+no fix round followed that verified clean, the run is `blocked` with
+`open` naming the problem and no `handoff`.
 
 ## Run modes
 

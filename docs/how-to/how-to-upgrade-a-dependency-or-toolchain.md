@@ -26,8 +26,11 @@ before/after comparison in the PR. For a new CI stage, use
    (for a renderer or engine, include a rendered-image comparison).
 4. When it finishes, read `decision`:
    - `ready-for-review`: the draft PR on `branch` has the upgrade, a
-     before/after table, comparison evidence and docs. Hand it to the
-     code reviewer, then land it with engineering-practices land-pr.
+     before/after table, comparison evidence and docs. For a work
+     package, ship it without rebuilding: run engineering-practices
+     deliver-package with `{ wp: "<the package>", prior: <the whole result> }`.
+     With no work package, hand it to the code reviewer, then land it with
+     engineering-practices land-pr. `next` gives both commands.
    - `blocked`: read `open`. A license or checksum blocker needs a
      decision before any code changes; anything else, fix and rerun with
      `run.from` and the returned `results`.

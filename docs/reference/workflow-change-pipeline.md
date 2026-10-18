@@ -22,7 +22,7 @@ Missing `change`, or any other `required` value, returns a usage string.
 | Phase | Agents | Writes |
 |---|---|---|
 | Plan | 1 | nothing |
-| Build | 1 | pipeline files; cross-role edits only as planned, one commit each |
+| Build | 1 | pipeline files; cross-role edits only as planned, one commit each; pushes, opens a draft PR and returns the branch, head SHA and whether the checks pass |
 | Verify | `behaviour`, `security`, `timing`, `ownership`; up to 3 rounds with a fixer | fixer only |
 | Required check | 1 | nothing |
 | Docs | 1 | pipeline reference, how-to, explanation |
@@ -62,10 +62,29 @@ Missing `change`, or any other `required` value, returns a usage string.
 | `baseline`, `timings` | before and after durations |
 | `required_check` | `decision` (`required-now`, `required-after-green-runs`, `not-required`), `green_runs_needed`, `reason` |
 | `cross_role` | cross-role edits made |
-| `open` | verification failures (only when blocked in Verify) |
+| `open` | verification failures (only when blocked in Verify), or the handoff problem (no branch, or checks not green) |
 | `doc_problems` | docs check problems |
 | `owner_actions` | owner-only steps, such as a branch protection setting |
 | `evidence` | per check evidence |
+| `handoff` | only on `ready-for-review`: the deliver-package `prior` object (see Handoff) |
+| `next` | only on `ready-for-review`: ship with deliver-package for a work package, otherwise land-pr |
+
+## Handoff
+
+There is no separate Handoff step: the Build step already commits, pushes
+and opens the draft PR, and also returns `branch`, `head_sha` and
+`tests_pass`. On `ready-for-review`, `handoff` is the object
+engineering-practices
+[deliver-package](https://github.com/opsroller/engineering-practices/blob/main/docs/reference/workflow-deliver-package.md)
+takes as `prior`, so pass the whole result and the work ships without
+being built again: `from` (`devops-engineer:change-pipeline`), `branch`, `pr`,
+`head_sha` (the Docs step's push, else the Build step's), `tests_pass`,
+`docs`, `undocumented`, `notes` (required-check decision, cross-role edits, owner actions). With no work package, land the
+branch with land-pr instead; `next` names both.
+
+If the Build step returned no branch, or its checks were not green and
+no fix round followed that verified clean, the run is `blocked` with
+`open` naming the problem and no `handoff`.
 
 ## Run modes
 

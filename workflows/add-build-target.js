@@ -4,7 +4,7 @@ export const meta = {
   description: 'Add a new platform build target end to end: design, pinned reproducible CI build, signing and store sheet, SBOM and license coverage, independent verification, and docs. args: { target: "<platform/arch, e.g. linux-x86_64>" (required), store?: "<store name>" }',
   phases: [
     { title: 'Plan', detail: 'runner, toolchain pins, artifact name, signing, docs to touch' },
-    { title: 'Build', detail: 'one agent implements the build script and CI job' },
+    { title: 'Build', detail: 'one agent implements the build script and CI job, pushes and opens a draft PR; its push is the handoff for deliver-package or land-pr' },
     { title: 'Verify', detail: 'parallel read-only checks: reproducibility, real runtime, matrix, compliance, signing/store; fix loop' },
     { title: 'Docs', detail: 'reference row, how-to, explanation of choices' },
     { title: 'Docs check', detail: 'one Diataxis kind per page' },
@@ -134,9 +134,24 @@ const CHECK = { type: 'object', properties: {
   evidence: { type: 'array', items: { type: 'string' } },
 }, required: ['blocking', 'evidence'] }
 
+const BUILD = { type: 'object', properties: {
+  branch: { type: 'string' },
+  pr: { type: 'string' },
+  head_sha: { type: 'string' },
+  tests_pass: { type: 'boolean' },
+  runs: { type: 'array', items: { type: 'string' } },
+  problem: { type: 'string' },
+}, required: ['branch', 'pr', 'tests_pass'] }
+
 const DOCCHECK = { type: 'object', properties: {
   problems: { type: 'array', items: { type: 'string' } },
 }, required: ['problems'] }
+
+const DOCS = { type: 'object', properties: {
+  pages: { type: 'array', items: { type: 'string' } },
+  undocumented: { type: 'array', items: { type: 'string' } },
+  head_sha: { type: 'string' },
+}, required: ['pages'] }
 
 phase('Plan')
 const plan = await agent(
@@ -156,8 +171,8 @@ const built = await agent(
 - explicit build options for this job: ${plan.build_options.join('; ')}
 - artifact: ${plan.artifact_name} plus SHA-256 checksum
 - run it in its real runtime in CI after the build: ${plan.runtime_check.runtime}, \`${plan.runtime_check.command}\`, asserting ${plan.runtime_check.asserts}; run the same command locally before pushing
-Use one build script the developer can also run; the CI job calls it. Make sure any new option you add does not change the behaviour of existing jobs (set it explicitly in each). Every new file carries the project's license header, never a template default. Run the full matrix, commit (build:/ci: Conventional Commits), push, open a draft PR. Return the PR URL and CI run links.`,
-  { phase: 'Build', label: 'build' })
+Use one build script the developer can also run; the CI job calls it. Make sure any new option you add does not change the behaviour of existing jobs (set it explicitly in each). Every new file carries the project's license header, never a template default. Run the full matrix, commit (build:/ci: Conventional Commits), push, open a draft PR. Follow the engineering-practices git-workflow skill. Return the branch, the PR URL, the head commit SHA you pushed, whether the full matrix and the runtime check pass on that head, the CI run links, and the problem if they do not.`,
+  { schema: BUILD, phase: 'Build', label: 'build' })
 if (!built) return { decision: 'blocked', reason: 'build agent returned nothing', plan }
 
 phase('Verify')
@@ -171,6 +186,7 @@ const checks = [
 let open = []
 let owner_actions = plan.owner_actions || []
 let evidence = []
+let fixed = false
 for (let round = 1; round <= 3; round++) {
   const res = await pipeline(checks, ([name, task]) =>
     agent(`${task}\nBranch ${plan.branch}. Read-only: do not edit, commit or push; return findings.`, { schema: CHECK, phase: 'Verify', label: `${name}:${round}`, independent: true })
@@ -181,6 +197,7 @@ for (let round = 1; round <= 3; round++) {
   if (!open.length || round === 3) break
   const f = await agent(`On ${plan.branch}, as the only editor, fix these verification findings, rerun CI, commit and push:\n- ${open.join('\n- ')}`, { phase: 'Verify', label: `fix:${round}` })
   if (!f) break
+  fixed = true
 }
 if (open.length) return { decision: 'blocked', open, owner_actions, evidence, plan }
 
@@ -191,8 +208,8 @@ Pages planned: ${JSON.stringify(plan.docs)}
 Facts: runner ${plan.runner}; pins ${plan.toolchain_pins.join('; ')}; options ${plan.build_options.join('; ')}; artifact ${plan.artifact_name}; signing ${plan.signing || 'n/a'}; evidence ${JSON.stringify(evidence)}.
 ${store ? `Add the ${store} store sheet as reference from the store check evidence.` : ''}
 ${DOCS_FRAGMENT}
-Commit (docs: ...), push. Return pages touched.`,
-  { phase: 'Docs', label: 'docs' })
+Commit (docs: ...), push. Return the pages touched, any change left undocumented and why, and the head commit SHA after your push.`,
+  { schema: DOCS, phase: 'Docs', label: 'docs' })
 
 phase('Docs check')
 const dc = await agent(
@@ -200,12 +217,32 @@ const dc = await agent(
   { schema: DOCCHECK, phase: 'Docs check', label: 'docs-check', independent: true })
 const docProblems = !docs ? ['documentation agent returned nothing'] : !dc ? ['documentation check did not run; docs unverified'] : dc.problems
 
-return {
+const result = {
   decision: docProblems.length ? 'blocked' : 'ready-for-review',
   target,
   branch: plan.branch,
   doc_problems: docProblems,
   owner_actions,
   evidence,
+}
+if (result.decision === 'blocked') return result
+
+// The handoff is what engineering-practices deliver-package takes as prior, built from
+// the Build step's push (a fix round that then verified clean counts as green).
+if (!built.branch) return { decision: 'blocked', open: [built.problem || 'build step returned no branch; the work may be unpushed'], owner_actions, evidence, plan }
+if (!built.tests_pass && !fixed) return { decision: 'blocked', open: [`matrix or runtime check fails on ${built.branch}${built.head_sha ? ' at ' + built.head_sha : ''}: ${built.problem || 'no details'}`], owner_actions, evidence, plan }
+return {
+  ...result,
+  handoff: {
+    from: 'devops-engineer:add-build-target',
+    branch: built.branch,
+    pr: built.pr || '',
+    head_sha: docs.head_sha || built.head_sha || '',
+    tests_pass: true,
+    docs: docs.pages || [],
+    undocumented: docs.undocumented || [],
+    notes: owner_actions.map(a => `owner action: ${a}`),
+  },
+  next: `ship it without rebuilding: /engineering-practices:deliver-package { wp: "<the package>", prior: <this result> }; with no work package, /engineering-practices:land-pr { branch: "${built.branch}" }`,
 }
 })(RUN.agent, RUN.phase, RUN.log)]); return RUN.finish(RUN_OUT)
