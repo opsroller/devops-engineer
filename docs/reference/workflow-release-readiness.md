@@ -45,10 +45,12 @@ Missing or invalid `version` returns a usage string.
 
 ## Run modes
 
-Run modes v1. Besides its own args, the workflow takes the optional `run` arg defined in the engineering-practices
+Run modes v2. Besides its own args, the workflow takes the optional `run` arg defined in the engineering-practices
 [workflow run modes reference](https://github.com/opsroller/engineering-practices/blob/main/docs/reference/workflow-run-modes.md):
 `run: { mode: "inline" }` runs every phase in the calling session with no subagents, `run.only` runs chosen phases or steps,
 and `run.from` with `run.results` resumes a stopped run. Without `run`, the workflow and its outputs are as above.
 See [how to run a workflow inline](https://github.com/opsroller/engineering-practices/blob/main/docs/how-to/how-to-run-a-workflow-inline.md).
 
 Step labels, for `run.only` and `run.results`: `plan`, `build:<platform>` (one per platform), `store:<store>` (one per store), `licenses`, `supply-chain`, `changelog`, `docs`, `docs-check`.
+
+Independent steps: `docs-check`. They review work this run produced, so in inline mode send each to a reviewer with no part in the work and name them in `run.reviewers`; a step you answer yourself is reported in `self_reviewed`.
