@@ -27,7 +27,8 @@ a review of the whole pipeline, use
    permissions and the artifact retention. If the repository is public,
    check that nothing in `artifacts` should stay private. If `cross_role`
    lists paths another role owns, make sure each edit is small enough to
-   explain in one line; otherwise stop and ask that role to make it.
+   explain in one line; otherwise stop and ask that role to make it. If that role has no running session, the workflow tells the
+   coordinator or project manager instead.
 4. When it finishes, read `decision`:
    - `ready-for-review`: the draft PR on `branch` has the stage, a run on
      the branch, verification evidence and docs. For a work package, ship it without rebuilding: run

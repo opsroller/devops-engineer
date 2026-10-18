@@ -22,10 +22,10 @@ Missing `change`, or any other `required` value, returns a usage string.
 | Phase | Agents | Writes |
 |---|---|---|
 | Plan | 1 | nothing |
-| Build | 1 | pipeline files; cross-role edits only as planned, one commit each; pushes, opens a draft PR and returns the branch, head SHA and whether the checks pass |
+| Build | 1 | pipeline files; cross-role edits only as planned, one commit each, each owner told (its role's running session, else the coordinator or project manager); pushes, opens a draft PR and returns the branch, head SHA and whether the checks pass |
 | Verify | `behaviour`, `security`, `timing`, `ownership`; up to 3 rounds with a fixer | fixer only |
 | Required check | 1 | nothing |
-| Docs | 1 | pipeline reference, how-to, explanation |
+| Docs | 1 | checks and completes the docs Build may already have pushed (pipeline reference, how-to, explanation): corrects stale content, adds only what is missing, pushes nothing if all is right |
 | Docs check | 1 | nothing |
 
 ## What the plan records
@@ -47,10 +47,10 @@ Missing `change`, or any other `required` value, returns a usage string.
 
 | Check | Blocks on |
 |---|---|
-| `behaviour` | no red result for a known-bad input (a local run of the stage's step script or local command is enough; no broken commit is pushed to CI), unclear failure message, changed behaviour of an existing job, triggers or paths not as planned |
+| `behaviour` | no red result for a known-bad input (a local run of the stage's step script or local command is enough; when the stage needs a platform-only toolchain or runner the environment lacks, a cited red run of the same stage on the default branch before the change, with its failing log lines, serves instead; no broken commit is pushed to CI), unclear failure message, changed behaviour of an existing job, triggers or paths not as planned |
 | `security` | write scopes without reason, unpinned step or unverified download, untrusted input in shell, secrets on untrusted triggers, artifacts or logs exposing what they should not |
 | `timing` | stage over its budget on the PR path; incorrect cache key |
-| `ownership` | a path outside the role's owned paths that is not listed under "Cross-role edits" with its owner notified |
+| `ownership` | a path outside the role's owned paths that is not listed under "Cross-role edits" with its owner notified (directly, or through the coordinator or project manager when the owning role has no running session) |
 
 ## Output
 
@@ -78,7 +78,7 @@ engineering-practices
 [deliver-package](https://github.com/opsroller/engineering-practices/blob/main/docs/reference/workflow-deliver-package.md)
 takes as `prior`, so pass the whole result and the work ships without
 being built again: `from` (`devops-engineer:change-pipeline`), `branch`, `pr`,
-`head_sha` (the Docs step's push, else the Build step's), `tests_pass`,
+`head_sha` (the Docs step's push if it pushed, else the Build step's), `tests_pass`,
 `docs`, `undocumented`, `notes` (required-check decision, cross-role edits, owner actions). With no work package, land the
 branch with land-pr instead; `next` names both.
 
