@@ -83,6 +83,50 @@ verification (`/devops-engineer:change-pipeline`).
   agreed window. Never auto-retry silently: record each retry as a flake.
 - **Bisect, do not guess.** For a regression of unknown origin, bisect over
   the commit range using the CI's own build.
+- **CI-only failures get a local reproduction.** When a job fails only on
+  the runner, reproduce the runner's environment locally (its driver or
+  runtime versions, or its container image) rather than pushing guesses;
+  see "Reproducing a CI-only driver or runtime failure" below.
+
+## Reproducing a CI-only driver or runtime failure
+
+A job that fails only on the runner (hang, crash, wrong pixels) in
+rendering, graphics or GPU-compute code is usually the runner's userspace
+driver (e.g. a software rasterizer at a version no developer has), not
+the code. Reproduce it locally before fixing; the full recipe is the
+how-to "How to reproduce a CI-only GPU driver failure locally"
+(`docs/how-to/how-to-reproduce-a-ci-only-gpu-driver-failure-locally.md`).
+
+1. Read the runner image and version, the exact driver package versions
+   and the program's renderer/device line from the failing job's log;
+   if the job does not print them, add a step that does and re-run once.
+2. Download exactly those packages (the distribution's package tool, or
+   its package archive or snapshot service for versions that left the
+   mirror; verify checksums) and unpack them into a scratch directory
+   without installing (e.g. `dpkg-deb -x`).
+3. Point the loader at them: library path (`LD_LIBRARY_PATH`), OpenGL
+   DRI driver path (`LIBGL_DRIVERS_PATH`), Vulkan ICD manifest
+   (`VK_DRIVER_FILES`, older loaders `VK_ICD_FILENAMES`, rewriting an
+   absolute `library_path`), and the job's own driver selection variables
+   (e.g. `LIBGL_ALWAYS_SOFTWARE`, `GALLIUM_DRIVER`,
+   `MESA_LOADER_DRIVER_OVERRIDE`).
+4. Prove the driver loaded (`glxinfo -B`, `vulkaninfo --summary`, the
+   program's renderer line, `LD_DEBUG=libs`) and that it matches the CI
+   log exactly. A mismatch makes every later result meaningless.
+5. Match the display (the same virtual X server size and depth, or the
+   same headless flag) and run the job's exact command on the CI-built
+   artifact with the job's timeout.
+6. Same symptom = a local red case. Green = the driver is not the whole
+   cause: run the job in the runner's container image with the runner's
+   CPU and memory limits. A remote debug shell on the runner is the last
+   resort: branch only, pinned, never in a job with secrets.
+7. If one driver version passes and another fails, bisect between them
+   and report the first bad version upstream; pin or work around
+   meanwhile.
+
+A local red run proves the failure lives in the program's interaction
+with that driver version and gives a fast fix loop; the green case is
+still the CI run on the fix branch.
 
 ## Pipeline security (triggers and secrets)
 
