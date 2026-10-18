@@ -21,9 +21,9 @@ Missing `asset` returns a usage string.
 | Phase | Agents | Writes |
 |---|---|---|
 | Plan | 1 | nothing; stops with `blocked` if the generator cannot run in CI or the project requires committed outputs |
-| Build | 1 | build target, reusable CI step, consumer wiring, ignore rule, untracked outputs; cross-role edits only as planned, one commit each; pushes, opens a draft PR and returns the branch, head SHA and whether the checks pass |
+| Build | 1 | build target, reusable CI step, consumer wiring, ignore rule, untracked outputs; cross-role edits only as planned, one commit each; pushes, opens a draft PR, lets CI run (cold) and re-runs the same workflow once (warm), and returns both run links, the branch, head SHA and whether the checks pass |
 | Verify | `clean`, `cache`, `determinism`, `wiring`, `security`, `ownership`; up to 3 rounds with a fixer | fixer only |
-| Docs | 1 | build reference, regenerate-locally how-to, explanation |
+| Docs | 1 | build reference, regenerate-locally how-to, explanation; runs the project's docs check on the pushed head if it has one |
 | Docs check | 1 | nothing |
 
 ## What the plan records
@@ -49,7 +49,7 @@ Missing `asset` returns a usage string.
 | Check | Blocks on |
 |---|---|
 | `clean` | a fresh clone with no cache does not produce every output, or something that reads them fails; an input change does not rerun the generator, or an unchanged rebuild does; outputs still tracked, not ignored, or inputs untracked |
-| `cache` | no cold-miss and warm-hit run shown; step over budget; a key that misses any `hash_inputs` item or changes every run; partial restore-key fallback for the outputs; a scope other than the planned one can write the cache |
+| `cache` | reads the Build step's cold and warm runs (never triggers one): either missing, no miss on the cold run or no hit on the warm one; step over budget; a key that misses any `hash_inputs` item or changes every run; partial restore-key fallback for the outputs; a scope other than the planned one can write the cache |
 | `determinism` | output digests differ between two runs on the same inputs, other than as the plan states |
 | `wiring` | a job or step reads the outputs without the CI step or build target first; a package or export lacks them; a consumer the plan missed |
 | `security` | write scopes without reason, unpinned tool or unverified download, untrusted input in shell, an untrusted branch able to write a cache the default branch or a release reads |
