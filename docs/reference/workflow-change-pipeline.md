@@ -47,7 +47,7 @@ Missing `change`, or any other `required` value, returns a usage string.
 
 | Check | Blocks on |
 |---|---|
-| `behaviour` | no red run for a known-bad input, unclear failure message, changed behaviour of an existing job, triggers or paths not as planned |
+| `behaviour` | no red result for a known-bad input (a local run of the stage's step script or local command is enough; no broken commit is pushed to CI), unclear failure message, changed behaviour of an existing job, triggers or paths not as planned |
 | `security` | write scopes without reason, unpinned step or unverified download, untrusted input in shell, secrets on untrusted triggers, artifacts or logs exposing what they should not |
 | `timing` | stage over its budget on the PR path; incorrect cache key |
 | `ownership` | a path outside the role's owned paths that is not listed under "Cross-role edits" with its owner notified |
