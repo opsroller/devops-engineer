@@ -25,8 +25,10 @@ this way counts as the local red run.
    where the program names its renderer or device (an engine banner,
    `OpenGL renderer string`, a Vulkan device name). If the job does not
    print them, add a step that runs `dpkg -l | grep -Ei 'mesa|vulkan|libgl|libegl|libdrm|llvm'`
-   and `glxinfo -B` or `vulkaninfo --summary`, and re-run it once on the
-   default branch: the versions are the evidence the rest depends on.
+   and `glxinfo -B` or `vulkaninfo --summary`, and run it once on a
+   scratch branch (or a manual dispatch of the workflow on one): the
+   runner image is the same, so the versions match, and the versions are
+   the evidence the rest depends on.
 2. **Fetch exactly those packages.** In a scratch directory:
 
    ```sh
@@ -59,14 +61,18 @@ this way counts as the local red run.
    R=$PWD/root/usr/lib/x86_64-linux-gnu
    export LD_LIBRARY_PATH=$R${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}
    export LIBGL_DRIVERS_PATH=$R/dri            # OpenGL/GLX DRI drivers
-   export VK_DRIVER_FILES=$PWD/root/usr/share/vulkan/icd.d/lvp_icd.x86_64.json
+   # The packaged ICD manifest names its library by absolute path
+   # (/usr/lib/...); point a copy at the unpacked library instead.
+   sed "s#\"/usr/lib#\"$PWD/root/usr/lib#" \
+     root/usr/share/vulkan/icd.d/lvp_icd.x86_64.json > lvp_icd.json
+   export VK_DRIVER_FILES=$PWD/lvp_icd.json
    export VK_ICD_FILENAMES=$VK_DRIVER_FILES    # older Vulkan loaders
    ```
 
-   The Vulkan ICD manifest names its library by path; if that path is
-   absolute (`/usr/lib/...`), copy the manifest and point
-   `library_path` at the unpacked file, or the loader picks up your
-   system's copy. To force the same driver the runner used, match its
+   The Vulkan loader opens the manifest's `library_path` directly and
+   ignores `LD_LIBRARY_PATH`, so without the rewritten copy it loads
+   your system's driver (or fails if none is installed); a manifest with
+   a bare file name needs no rewrite. To force the same driver the runner used, match its
    selection variables: `LIBGL_ALWAYS_SOFTWARE=1` for a software
    OpenGL context, `GALLIUM_DRIVER=llvmpipe` (or `softpipe`, `zink`) to
    pick the Gallium driver, `MESA_LOADER_DRIVER_OVERRIDE=<name>` to
