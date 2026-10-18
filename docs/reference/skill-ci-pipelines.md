@@ -28,6 +28,13 @@
 - Every downloaded tool, SDK, engine or runtime is version-pinned and checksum-verified.
 - Third-party steps pinned to immutable references; tokens read-only by default.
 - Untrusted PR code never runs with secrets; untrusted text never interpolated into shell.
+- Artifact retention set explicitly, shortest that serves; on public repositories logs, caches and artifacts are readable by anyone with read access.
+- A path-filtered or event-limited check is never required where it does not report.
+- Edits to another role's paths are minimal, separate commits, listed in the PR, owner told.
+
+## Workflow
+
+[change-pipeline](workflow-change-pipeline.md) runs the method for adding or changing a stage.
 
 ## Quality bar
 

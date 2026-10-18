@@ -27,6 +27,7 @@ project's `CLAUDE.md` and profile say with which tools.
   [check a release is ready](docs/how-to/how-to-check-a-release-is-ready.md),
   [cut a release](docs/how-to/how-to-cut-a-release.md),
   [add a build target](docs/how-to/how-to-add-a-build-target.md),
+  [add or change a pipeline stage](docs/how-to/how-to-add-or-change-a-pipeline-stage.md),
   [audit and harden the pipeline](docs/how-to/how-to-audit-and-harden-the-pipeline.md) and
   [make a repository REUSE-compliant](docs/how-to/how-to-make-a-repository-reuse-compliant.md).
 - **Look something up.** The [reference index](docs/reference/index.md)

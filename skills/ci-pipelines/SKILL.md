@@ -43,6 +43,9 @@ Decision rules:
 
 ## Method: adding or changing a stage
 
+The `change-pipeline` workflow runs these steps with independent
+verification (`/devops-engineer:change-pipeline`).
+
 1. Read the project profile: CI provider, targets, required checks, runner
    types, secrets available.
 2. Write down the stage's purpose, inputs, outputs and its failure meaning
@@ -53,9 +56,20 @@ Decision rules:
 4. Set least-privilege permissions at the top (read-only), then grant write
    scopes only to the job that needs them (e.g. the publish job).
 5. Add caching only with a correct key (see `cross-platform-builds`).
-6. Run it on a branch; compare duration and result against the baseline.
-7. Make it required once it has been green for several runs.
-8. Update the project's pipeline reference doc (stages, triggers, required
+6. Set each artifact's retention explicitly, to the shortest period that
+   serves its use, and upload only what the stage needs. On a public
+   repository, logs, caches and artifacts can be read by anyone with read
+   access: keep secrets, signing material and builds the project has not
+   cleared for release out of them.
+7. If the stage needs a change in a path another role owns, keep that
+   edit minimal, in its own commit, list it in the PR and tell the owner
+   (engineering-practices `peer-coordination`, cross-role edits).
+8. Run it on a branch; compare duration and result against the baseline
+   and the stage's time budget.
+9. Make it required once it has been green for several runs. A check
+   that runs only on some paths or events must not be required where it
+   never reports, or it blocks unrelated changes.
+10. Update the project's pipeline reference doc (stages, triggers, required
    checks, artifacts) and, if the stage changes a contributor procedure,
    the relevant how-to.
 
